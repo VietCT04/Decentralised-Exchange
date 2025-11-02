@@ -8,7 +8,7 @@ const require = createRequire(import.meta.url);
 const factoryJson = require("../artifacts/contracts/TokenFactory.sol/TokenFactory.json");
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const ADDR_FILE = resolve(__dirname, "../web/src/addresses.local.json");
+const ADDR_FILE = resolve(__dirname, "../dex-web/src/lib/addresses.local.json");
 
 // helper: read/merge address file
 async function readAddresses() {
