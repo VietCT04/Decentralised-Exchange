@@ -1,4 +1,5 @@
 import "@nomicfoundation/hardhat-toolbox-mocha-ethers";
+import "@nomicfoundation/hardhat-ethers";  
 
 /** @type import('hardhat/config').HardhatUserConfig */
 export default {
