@@ -15,6 +15,29 @@ This example project includes:
 
 ## Usage
 
+To run frontend, execute the following command:
+```shell
+cd dex-web
+npm run dev
+```
+
+To run the fake crypto wallet and token factory, execute the following command:
+Terminal 1: 
+```shell
+npx hardhat node
+```
+Terminal 2: 
+```shell
+node scripts/deployFactory-write-frontend.js
+```
+
+To connect to hardhat local network:
+- Import the first account from 'npx hardhat node' to metamask
+- Add local hardhat network to metamask: 
+    + Default RPC URL: (http://127.0.0.1:8545)
+    + Chain ID: 31337
+    + Currency: ETH
+
 ### Running Tests
 
 To run all the tests in the project, execute the following command:
