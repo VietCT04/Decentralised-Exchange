@@ -30,3 +30,39 @@ export const ERC20_ABI = [
   { inputs:[], name:"symbol", outputs:[{internalType:"string",name:"",type:"string"}], stateMutability:"view", type:"function" },
   { inputs:[], name:"name", outputs:[{internalType:"string",name:"",type:"string"}], stateMutability:"view", type:"function" }
 ];
+
+export const DEX_ABI = [
+  {
+    "inputs":[
+      {"internalType":"address","name":"sellToken","type":"address"},
+      {"internalType":"address","name":"buyToken","type":"address"},
+      {"internalType":"uint256","name":"sellAmount","type":"uint256"},
+      {"internalType":"uint256","name":"buyAmount","type":"uint256"}
+    ],
+    "name":"createOrder",
+    "outputs":[{"internalType":"uint256","name":"id","type":"uint256"}],
+    "stateMutability":"nonpayable",
+    "type":"function"
+  },
+  {
+    "inputs":[{"internalType":"uint256","name":"id","type":"uint256"}],
+    "name":"cancelOrder",
+    "outputs":[],
+    "stateMutability":"nonpayable",
+    "type":"function"
+  },
+  { "inputs": [{"internalType":"uint256","name":"id","type":"uint256"}], "name":"getOrder",
+    "outputs":[
+      {"components":[
+        {"internalType":"address","name":"owner","type":"address"},
+        {"internalType":"address","name":"sellToken","type":"address"},
+        {"internalType":"address","name":"buyToken","type":"address"},
+        {"internalType":"uint256","name":"sellAmount","type":"uint256"},
+        {"internalType":"uint256","name":"buyAmount","type":"uint256"},
+        {"internalType":"uint256","name":"remainingSell","type":"uint256"},
+        {"internalType":"bool","name":"active","type":"bool"}
+      ],"internalType":"struct SimpleDex.Order","name":"","type":"tuple"}],
+    "stateMutability":"view","type":"function"
+  },
+  { "inputs":[],"name":"getOrdersLength","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function" }
+];
