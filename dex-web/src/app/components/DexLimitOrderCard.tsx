@@ -119,14 +119,69 @@ export default function DexLimitOrderCard() {
     const me = (await s.getAddress()).toLowerCase();
     const dex = new ethers.Contract((addrs as any).DEX, DEX_ABI, s);
 
-    const len: bigint = await dex.getOrdersLength();
-    const out: any[] = [];
+    // len can be a BigInt; convert safely for small lists:
+    const len = Number(await dex.getOrdersLength());
+
+    const out: Array<{
+      id: number;
+      owner: string;
+      sellToken: string;
+      buyToken: string;
+      sellAmount: bigint;
+      buyAmount: bigint;
+      remainingSell: bigint;
+      active: boolean;
+    }> = [];
+
     for (let i = 0; i < len; i++) {
-      const o = await dex.getOrder(i);
-      if (o.owner.toLowerCase() === me) out.push({ id: Number(i), ...o });
+      // Destructure by position to get a plain JS set of values
+      const res = await dex.getOrder(i);
+      const [
+        owner,
+        sellToken,
+        buyToken,
+        sellAmount,
+        buyAmount,
+        remainingSell,
+        active,
+      ] = res as unknown as [
+        string,
+        string,
+        string,
+        bigint,
+        bigint,
+        bigint,
+        boolean
+      ];
+
+      if (owner.toLowerCase() === me) {
+        out.push({
+          id: i,
+          owner,
+          sellToken,
+          buyToken,
+          sellAmount,
+          buyAmount,
+          remainingSell,
+          active,
+        });
+      }
     }
+
+    // Debug helpers (you can remove later)
+    console.table(
+      out.map((o) => ({
+        id: o.id,
+        owner: o.owner,
+        sellToken: o.sellToken,
+        buyToken: o.buyToken,
+        active: o.active,
+      }))
+    );
+
     setOrders(out);
   }
+
   useEffect(() => {
     fetchMyOrders();
   }, [provider]);
