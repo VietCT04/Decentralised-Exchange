@@ -4,6 +4,7 @@ import { useState } from "react";
 import { ethers, Interface } from "ethers";
 import { FACTORY_ABI, ERC20_ABI } from "@/lib/abi";
 import addrs from "@/lib/addresses.local.json";
+import { DEX_ABI } from "@/lib/abi";
 
 type Alert = { type: "error" | "success" | ""; text: string };
 
@@ -119,6 +120,8 @@ export default function Page() {
       setBusy(false);
     }
   }
+
+  
 
   async function addToMM() {
     if (!issued) return;
