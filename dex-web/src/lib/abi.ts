@@ -65,5 +65,29 @@ export const DEX_ABI = [
       type: 'tuple'
     }]
   },
+  {
+    "type": "function",
+    "name": "fillOrder",
+    "stateMutability": "nonpayable",
+    "inputs": [
+      { "name": "id", "type": "uint256" },
+      { "name": "sellAmountToTake", "type": "uint256" }
+    ],
+    "outputs": []
+  },
+
+  // optional: new event
+  {
+    "type": "event",
+    "name": "OrderFilled",
+    "inputs": [
+      { "name": "id", "type": "uint256", "indexed": true },
+      { "name": "maker", "type": "address", "indexed": true },
+      { "name": "taker", "type": "address", "indexed": true },
+      { "name": "sellTaken", "type": "uint256", "indexed": false },
+      { "name": "buyPaid", "type": "uint256", "indexed": false }
+    ],
+    "anonymous": false
+  },
   { inputs: [], name: 'getOrdersLength', outputs: [{ type: 'uint256' }], stateMutability: 'view', type: 'function' }
 ] as const;

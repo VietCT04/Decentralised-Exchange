@@ -3,6 +3,7 @@
 import ConnectButton from "./components/ConnectButton";
 import IssueTokenCard from "./components/IssueTokenCard";
 import DexLimitOrderCard from "./components/DexLimitOrderCard";
+import OrderBookCard from "@/app/components/OrderBookCard";
 
 export default function Page() {
   return (
@@ -18,6 +19,7 @@ export default function Page() {
         <IssueTokenCard />
         <div className="h-6" />
         <DexLimitOrderCard />
+        <OrderBookCard />
       </div>
     </main>
   );
