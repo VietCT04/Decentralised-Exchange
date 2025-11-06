@@ -1,7 +1,9 @@
+// app/providers/WalletProvider.tsx
 "use client";
 
 import { createContext, useContext, useEffect, useState } from "react";
 import { ethers } from "ethers";
+import { NET } from "@/lib/net";
 
 type Ctx = {
   provider: ethers.BrowserProvider | null;
@@ -14,7 +16,6 @@ const WalletContext = createContext<Ctx>({
   provider: null,
   account: "",
   chainId: null,
-  // eslint-disable-next-line @typescript-eslint/no-empty-function
   connect: async () => {},
 });
 
@@ -23,9 +24,40 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
   const [account, setAccount] = useState("");
   const [chainId, setChainId] = useState<number | null>(null);
 
+  async function ensureSepolia() {
+    const eth = (globalThis as any).ethereum;
+    if (!eth) throw new Error("Install MetaMask");
+
+    try {
+      await eth.request({
+        method: "wallet_switchEthereumChain",
+        params: [{ chainId: NET.hex }],
+      });
+    } catch (e: any) {
+      if (e?.code === 4902) {
+        await eth.request({
+          method: "wallet_addEthereumChain",
+          params: [
+            {
+              chainId: NET.hex,
+              chainName: NET.name,
+              rpcUrls: [process.env.NEXT_PUBLIC_SEPOLIA_RPC!], // set this in .env
+              nativeCurrency: { name: "Sepolia ETH", symbol: "ETH", decimals: 18 },
+              blockExplorerUrls: [NET.explorer],
+            },
+          ],
+        });
+      } else {
+        throw e;
+      }
+    }
+  }
+
   const connect = async () => {
     const eth = (globalThis as any).ethereum;
     if (!eth) throw new Error("Install MetaMask");
+
+    await ensureSepolia();
 
     const p = new ethers.BrowserProvider(eth);
     await p.send("eth_requestAccounts", []);
@@ -37,63 +69,15 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
     setChainId(Number(net.chainId));
   };
 
-  async function ensureSepolia() {
-    const hex = "0xaa36a7"; // 11155111
-    try {
-      if (typeof window.ethereum !== "undefined") {
-        await window.ethereum.request({
-          method: "wallet_switchEthereumChain",
-          params: [{ chainId: hex }],
-        });
-        console.log("MetaMask or a compatible wallet is installed!");
-      } else {
-        console.log(
-          "Please install MetaMask or a compatible wallet to use this feature."
-        );
-      }
-    } catch (e: any) {
-      if (e.code === 4902) {
-        if (typeof window.ethereum !== "undefined") {
-          await window.ethereum.request({
-            method: "wallet_addEthereumChain",
-            params: [
-              {
-                chainId: hex,
-                chainName: "Sepolia",
-                rpcUrls: ["https://eth-sepolia.g.alchemy.com/v2/<YOUR_KEY>"],
-                nativeCurrency: {
-                  name: "Sepolia ETH",
-                  symbol: "ETH",
-                  decimals: 18,
-                },
-                blockExplorerUrls: ["https://sepolia.etherscan.io"],
-              },
-            ],
-          });
-          console.log("MetaMask or a compatible wallet is installed!");
-        } else {
-          console.log(
-            "Please install MetaMask or a compatible wallet to use this feature."
-          );
-        }
-      } else {
-        throw e;
-      }
-    }
-  }
-
-  // auto-refresh on account / chain changes
   useEffect(() => {
     const eth = (globalThis as any).ethereum;
     if (!eth) return;
-
-    const onAcc = () => connect().catch(() => {});
-    const onChain = () => connect().catch(() => {});
-    eth.on?.("accountsChanged", onAcc);
-    eth.on?.("chainChanged", onChain);
+    const relog = () => connect().catch(() => {});
+    eth.on?.("accountsChanged", relog);
+    eth.on?.("chainChanged", relog);
     return () => {
-      eth.removeListener?.("accountsChanged", onAcc);
-      eth.removeListener?.("chainChanged", onChain);
+      eth.removeListener?.("accountsChanged", relog);
+      eth.removeListener?.("chainChanged", relog);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);

@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { ethers } from "ethers";
-import addrs from "./addresses.local.json";
+import addrs from "./addresses.sepolia.json";
 import { FACTORY_ABI } from "./factoryAbi";
 import { ERC20_ABI } from "./erc20Abi";
 

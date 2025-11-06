@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { ethers } from "ethers";
 import { useWallet } from "@/app/providers/WalletProvider";
 import { DEX_ABI, ERC20_ABI } from "@/lib/abi";
-import addrs from "@/lib/addresses.local.json";
+import addrs from "@/lib/addresses.sepolia.json";
 
 export default function DexLimitOrderCard() {
   const { provider, account, chainId } = useWallet();

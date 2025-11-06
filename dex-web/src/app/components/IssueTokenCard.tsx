@@ -4,20 +4,25 @@ import { useState } from "react";
 import { ethers, Interface } from "ethers";
 import { useWallet } from "@/app/providers/WalletProvider";
 import { FACTORY_ABI, ERC20_ABI } from "@/lib/abi";
-import addrs from "@/lib/addresses.local.json";
-
-const LOCAL_RPC = "http://127.0.0.1:8545";
+import addrs from "@/lib/addresses.sepolia.json";
+import { SEPOLIA_CHAIN_ID, SEPOLIA_RPC, SEPOLIA_EXPLORER } from "@/lib/net";
 
 export default function IssueTokenCard() {
   const { provider, account, chainId } = useWallet();
+
   const [name, setName] = useState("VietCT");
   const [symbol, setSymbol] = useState("VCT");
   const [supply, setSupply] = useState("1000000");
+
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<{
     type: "error" | "success" | "";
     text: string;
-  }>({ type: "", text: "" });
+  }>({
+    type: "",
+    text: "",
+  });
+
   const [issued, setIssued] = useState<{
     address: string;
     name: string;
@@ -45,8 +50,8 @@ export default function IssueTokenCard() {
       setMsg({ type: "error", text: "Connect wallet first." });
       return;
     }
-    if (chainId !== 31337) {
-      setMsg({ type: "error", text: "Switch MetaMask to Hardhat (31337)." });
+    if (chainId !== SEPOLIA_CHAIN_ID) {
+      setMsg({ type: "error", text: "Switch MetaMask to Sepolia (11155111)." });
       return;
     }
 
@@ -56,19 +61,21 @@ export default function IssueTokenCard() {
 
     try {
       const signer = await provider.getSigner();
-      const factoryAddr = (addrs as any).FACTORY as string;
+      const factoryAddr = (addrs as any).FACTORY as string; // ensure addresses.sepolia.json has FACTORY
 
-      // verify code via direct RPC to bypass caching
-      const rpc = new ethers.JsonRpcProvider(LOCAL_RPC);
+      // verify the factory really exists on Sepolia
+      const rpc = new ethers.JsonRpcProvider(SEPOLIA_RPC);
       const code = await rpc.getCode(factoryAddr);
-      if (code === "0x")
+      if (code === "0x") {
         throw new Error(
-          "Factory not deployed on this chain. Re-deploy & refresh."
+          `Factory not deployed on Sepolia at ${factoryAddr}. Re-deploy & refresh.`
         );
+      }
 
       const factory = new ethers.Contract(factoryAddr, FACTORY_ABI, signer);
       const supplyWei = ethers.parseUnits(supply || "0", 18);
 
+      // Best-effort pre-compute token address (if your factory supports it)
       let predicted: string | undefined;
       try {
         predicted = await factory.issueToken.staticCall(
@@ -83,6 +90,7 @@ export default function IssueTokenCard() {
 
       let tokenAddr = predicted;
       if (!tokenAddr) {
+        // Recover from event logs if we didn't get a predicted address
         const iface = new Interface(FACTORY_ABI);
         for (const log of receipt!.logs) {
           try {
@@ -101,6 +109,7 @@ export default function IssueTokenCard() {
         token.balanceOf(await signer.getAddress()),
         token.decimals(),
       ]);
+
       setIssued({
         address: tokenAddr,
         name,
@@ -180,7 +189,14 @@ export default function IssueTokenCard() {
             </div>
             <div className="mt-1 break-all">
               <span className="text-slate-400">Address:</span>{" "}
-              <span className="text-indigo-300">{issued.address}</span>
+              <a
+                href={`${SEPOLIA_EXPLORER}/address/${issued.address}`}
+                target="_blank"
+                rel="noreferrer"
+                className="text-indigo-300 underline"
+              >
+                {issued.address}
+              </a>
             </div>
             <div className="mt-1">
               <span className="text-slate-400">Your balance:</span>{" "}
@@ -205,9 +221,9 @@ export default function IssueTokenCard() {
           </div>
         </div>
       )}
+
       <p className="mt-4 text-xs text-slate-400">
-        Make sure MetaMask is on the Hardhat network (RPC http://127.0.0.1:8545,
-        Chain ID 31337).
+        Make sure MetaMask is on the <b>Sepolia</b> network (Chain ID 11155111).
       </p>
     </section>
   );
