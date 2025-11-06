@@ -5,13 +5,14 @@ import { ethers } from "ethers";
 import { useWallet } from "@/app/providers/WalletProvider";
 import { DEX_ABI, ERC20_ABI } from "@/lib/abi";
 import addrs from "@/lib/addresses.sepolia.json";
+import { NET } from "@/lib/net";
+
+type TokenMeta = { symbol: string; decimals: number };
 
 export default function DexLimitOrderCard() {
   const { provider, account, chainId } = useWallet();
-  const [tokenMeta, setTokenMeta] = useState<
-    Record<string, { symbol: string; decimals: number }>
-  >({});
 
+  const [tokenMeta, setTokenMeta] = useState<Record<string, TokenMeta>>({});
   const [sellToken, setSellToken] = useState("");
   const [buyToken, setBuyToken] = useState("");
   const [sellAmt, setSellAmt] = useState("100");
@@ -22,14 +23,48 @@ export default function DexLimitOrderCard() {
     decimals: number;
     balance: string;
   } | null>(null);
+
   const [orders, setOrders] = useState<any[]>([]);
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<{
     type: "error" | "success" | "";
     text: string;
-  }>({ type: "", text: "" });
+  }>({
+    type: "",
+    text: "",
+  });
 
-  async function readTokenMeta(addr: string) {
+  // ---------- helpers ----------
+  const dexAddress = (addrs as any).DEX as string;
+
+  async function requireSepolia(): Promise<boolean> {
+    if (!provider) {
+      setMsg({ type: "error", text: "Connect wallet first." });
+      return false;
+    }
+    if (chainId !== NET.id) {
+      setMsg({
+        type: "error",
+        text: `Switch MetaMask to ${NET.name} (${NET.id}).`,
+      });
+      return false;
+    }
+    // verify DEX bytecode on this chain
+    const code = await provider.getCode(dexAddress);
+    if (code === "0x") {
+      setMsg({
+        type: "error",
+        text:
+          "DEX is not deployed at the configured address on Sepolia. " +
+          "Re-deploy or update addresses.sepolia.json.",
+      });
+      return false;
+    }
+    return true;
+  }
+
+  // load SELL token meta + balance of the connected user
+  async function readSellTokenMeta(addr: string) {
     if (!provider || !addr) return setSellMeta(null);
     try {
       const s = await provider.getSigner();
@@ -48,10 +83,13 @@ export default function DexLimitOrderCard() {
       setSellMeta(null);
     }
   }
-  async function ensureTokenMeta(addr: string) {
-    if (!provider || !addr) return;
-    if (tokenMeta[addr]) return; // cached
+  useEffect(() => {
+    readSellTokenMeta(sellToken);
+  }, [sellToken, provider]);
 
+  // cache symbol/decimals for any token address
+  async function ensureTokenMeta(addr: string) {
+    if (!provider || !addr || tokenMeta[addr]) return;
     try {
       const erc = new ethers.Contract(addr, ERC20_ABI, provider);
       const [symbol, decimals] = await Promise.all([
@@ -63,32 +101,23 @@ export default function DexLimitOrderCard() {
         [addr]: { symbol, decimals: Number(decimals) },
       }));
     } catch {
-      // default to 18 if read fails
       setTokenMeta((m) => ({ ...m, [addr]: { symbol: "?", decimals: 18 } }));
     }
   }
 
-  useEffect(() => {
-    readTokenMeta(sellToken);
-  }, [sellToken, provider]);
-
+  // ---------- actions ----------
   async function approve() {
-    if (!provider)
-      return setMsg({ type: "error", text: "Connect wallet first." });
-    if (chainId !== 31337)
-      return setMsg({ type: "error", text: "Switch to Hardhat 31337." });
+    if (!(await requireSepolia())) return;
     try {
       setBusy(true);
-      const s = await provider.getSigner();
+      const s = await provider!.getSigner();
       const erc = new ethers.Contract(sellToken, ERC20_ABI, s);
-      const amountWei = ethers.parseUnits(
-        sellAmt || "0",
-        sellMeta?.decimals ?? 18
-      );
-      const tx = await erc.approve((addrs as any).DEX, amountWei);
+      const dec = sellMeta?.decimals ?? tokenMeta[sellToken]?.decimals ?? 18;
+      const amountWei = ethers.parseUnits(sellAmt || "0", dec);
+      const tx = await erc.approve(dexAddress, amountWei);
       await tx.wait();
       setMsg({ type: "success", text: "Approved spend for DEX." });
-      await readTokenMeta(sellToken);
+      await readSellTokenMeta(sellToken);
     } catch (e: any) {
       setMsg({ type: "error", text: e?.message ?? "Approve failed" });
     } finally {
@@ -97,32 +126,38 @@ export default function DexLimitOrderCard() {
   }
 
   async function createOrder() {
-    if (!provider)
-      return setMsg({ type: "error", text: "Connect wallet first." });
-    if (chainId !== 31337)
-      return setMsg({ type: "error", text: "Switch to Hardhat 31337." });
-
+    if (!(await requireSepolia())) return;
     try {
       setBusy(true);
-      const s = await provider.getSigner();
-      const dex = new ethers.Contract((addrs as any).DEX, DEX_ABI, s);
 
-      const decSell = sellMeta?.decimals ?? 18;
+      // make sure we know decimals for both tokens
+      await Promise.all([
+        ensureTokenMeta(sellToken),
+        ensureTokenMeta(buyToken),
+      ]);
+
+      const decSell =
+        sellMeta?.decimals ?? tokenMeta[sellToken]?.decimals ?? 18;
+      const decBuy = tokenMeta[buyToken]?.decimals ?? 18;
+
       const sellWei = ethers.parseUnits(sellAmt || "0", decSell);
-      // simple: assume 18 decimals for buy token; you can also fetch it like sellMeta
-      const buyWei = ethers.parseUnits(buyAmt || "0", 18);
+      const buyWei = ethers.parseUnits(buyAmt || "0", decBuy);
 
-      // verify allowance
+      const s = await provider!.getSigner();
+      const dex = new ethers.Contract(dexAddress, DEX_ABI, s);
+
+      // allowance check
       const erc = new ethers.Contract(sellToken, ERC20_ABI, s);
-      const allowance = await erc.allowance(
+      const allowance: bigint = await erc.allowance(
         await s.getAddress(),
-        (addrs as any).DEX
+        dexAddress
       );
       if (allowance < sellWei) {
-        return setMsg({
+        setMsg({
           type: "error",
           text: "Insufficient allowance. Approve first.",
         });
+        return;
       }
 
       const tx = await dex.createOrder(sellToken, buyToken, sellWei, buyWei);
@@ -138,36 +173,24 @@ export default function DexLimitOrderCard() {
 
   async function fetchMyOrders() {
     if (!provider) return;
-    const s = await provider.getSigner();
-    const me = (await s.getAddress()).toLowerCase();
-    const dex = new ethers.Contract((addrs as any).DEX, DEX_ABI, s);
+    try {
+      // bail out early if wrong chain or bad DEX address
+      const code = await provider.getCode(dexAddress);
+      if (code === "0x") {
+        setOrders([]);
+        return;
+      }
 
-    const len = Number(await dex.getOrdersLength());
-    const out: any[] = [];
+      const s = await provider.getSigner();
+      const me = (await s.getAddress()).toLowerCase();
+      const dex = new ethers.Contract(dexAddress, DEX_ABI, s);
 
-    for (let i = 0; i < len; i++) {
-      const res = await dex.getOrder(i);
-      const [
-        owner,
-        sellToken,
-        buyToken,
-        sellAmount,
-        buyAmount,
-        remainingSell,
-        active,
-      ] = res as unknown as [
-        string,
-        string,
-        string,
-        bigint,
-        bigint,
-        bigint,
-        boolean
-      ];
+      const len = Number(await dex.getOrdersLength());
+      const out: any[] = [];
 
-      if (owner.toLowerCase() === me) {
-        out.push({
-          id: i,
+      for (let i = 0; i < len; i++) {
+        const o = await dex.getOrder(i);
+        const [
           owner,
           sellToken,
           buyToken,
@@ -175,29 +198,57 @@ export default function DexLimitOrderCard() {
           buyAmount,
           remainingSell,
           active,
-        });
+        ] = o as unknown as [
+          string,
+          string,
+          string,
+          bigint,
+          bigint,
+          bigint,
+          boolean
+        ];
+        if (owner.toLowerCase() === me) {
+          out.push({
+            id: i,
+            owner,
+            sellToken,
+            buyToken,
+            sellAmount,
+            buyAmount,
+            remainingSell,
+            active,
+          });
+        }
       }
+
+      // prefetch token decimals/symbols for those seen in orders
+      const uniq = Array.from(
+        new Set(out.flatMap((o) => [o.sellToken, o.buyToken]))
+      );
+      await Promise.all(uniq.map(ensureTokenMeta));
+
+      setOrders(out);
+    } catch (e: any) {
+      // Most common cause is wrong ABI/addr → display friendly hint
+      setMsg({
+        type: "error",
+        text:
+          e?.message ??
+          "Failed to load orders. Check DEX address and ABI match the deployed contract.",
+      });
     }
-
-    // prefetch token meta (symbol/decimals) for all tokens appearing in orders
-    const uniq = Array.from(
-      new Set(out.flatMap((o) => [o.sellToken, o.buyToken]))
-    );
-    await Promise.all(uniq.map(ensureTokenMeta));
-
-    setOrders(out);
   }
-
   useEffect(() => {
     fetchMyOrders();
-  }, [provider]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [provider, account, chainId]);
 
   async function cancel(id: number) {
-    if (!provider) return;
+    if (!(await requireSepolia())) return;
     try {
       setBusy(true);
-      const s = await provider.getSigner();
-      const dex = new ethers.Contract((addrs as any).DEX, DEX_ABI, s);
+      const s = await provider!.getSigner();
+      const dex = new ethers.Contract(dexAddress, DEX_ABI, s);
       const tx = await dex.cancelOrder(id);
       await tx.wait();
       await fetchMyOrders();
@@ -209,6 +260,7 @@ export default function DexLimitOrderCard() {
     }
   }
 
+  // ---------- UI ----------
   return (
     <section className="rounded-2xl border border-slate-800 bg-slate-900/70 p-6 shadow-xl">
       {msg.text && (
@@ -223,7 +275,7 @@ export default function DexLimitOrderCard() {
         </div>
       )}
 
-      <h2 className="text-lg font-medium mb-4">Create Limit Order</h2>
+      <h2 className="mb-4 text-lg font-medium">Create Limit Order</h2>
 
       <div className="grid grid-cols-[160px_1fr] gap-x-4 gap-y-3">
         <label className="text-slate-400">Sell Token</label>
@@ -284,7 +336,7 @@ export default function DexLimitOrderCard() {
       </div>
 
       <div className="mt-6">
-        <h3 className="text-sm font-medium text-slate-300 mb-2">
+        <h3 className="mb-2 text-sm font-medium text-slate-300">
           My Open Orders
         </h3>
         {orders.length === 0 && (
@@ -310,10 +362,10 @@ export default function DexLimitOrderCard() {
               >
                 <div className="flex items-center justify-between">
                   <div className="min-w-0">
-                    <div className="text-slate-300 truncate">
+                    <div className="truncate text-slate-300">
                       Order #{o.id} {o.active ? "" : "(inactive)"}
                     </div>
-                    <div className="text-slate-400 break-all">
+                    <div className="break-all text-slate-400">
                       sellToken: {o.sellToken}
                       <br />
                       buyToken: {o.buyToken}
