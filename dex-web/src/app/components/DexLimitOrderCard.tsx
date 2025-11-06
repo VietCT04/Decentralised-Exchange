@@ -8,6 +8,9 @@ import addrs from "@/lib/addresses.local.json";
 
 export default function DexLimitOrderCard() {
   const { provider, account, chainId } = useWallet();
+  const [tokenMeta, setTokenMeta] = useState<
+    Record<string, { symbol: string; decimals: number }>
+  >({});
 
   const [sellToken, setSellToken] = useState("");
   const [buyToken, setBuyToken] = useState("");
@@ -45,6 +48,26 @@ export default function DexLimitOrderCard() {
       setSellMeta(null);
     }
   }
+  async function ensureTokenMeta(addr: string) {
+    if (!provider || !addr) return;
+    if (tokenMeta[addr]) return; // cached
+
+    try {
+      const erc = new ethers.Contract(addr, ERC20_ABI, provider);
+      const [symbol, decimals] = await Promise.all([
+        erc.symbol(),
+        erc.decimals(),
+      ]);
+      setTokenMeta((m) => ({
+        ...m,
+        [addr]: { symbol, decimals: Number(decimals) },
+      }));
+    } catch {
+      // default to 18 if read fails
+      setTokenMeta((m) => ({ ...m, [addr]: { symbol: "?", decimals: 18 } }));
+    }
+  }
+
   useEffect(() => {
     readTokenMeta(sellToken);
   }, [sellToken, provider]);
@@ -119,22 +142,10 @@ export default function DexLimitOrderCard() {
     const me = (await s.getAddress()).toLowerCase();
     const dex = new ethers.Contract((addrs as any).DEX, DEX_ABI, s);
 
-    // len can be a BigInt; convert safely for small lists:
     const len = Number(await dex.getOrdersLength());
-
-    const out: Array<{
-      id: number;
-      owner: string;
-      sellToken: string;
-      buyToken: string;
-      sellAmount: bigint;
-      buyAmount: bigint;
-      remainingSell: bigint;
-      active: boolean;
-    }> = [];
+    const out: any[] = [];
 
     for (let i = 0; i < len; i++) {
-      // Destructure by position to get a plain JS set of values
       const res = await dex.getOrder(i);
       const [
         owner,
@@ -168,16 +179,11 @@ export default function DexLimitOrderCard() {
       }
     }
 
-    // Debug helpers (you can remove later)
-    console.table(
-      out.map((o) => ({
-        id: o.id,
-        owner: o.owner,
-        sellToken: o.sellToken,
-        buyToken: o.buyToken,
-        active: o.active,
-      }))
+    // prefetch token meta (symbol/decimals) for all tokens appearing in orders
+    const uniq = Array.from(
+      new Set(out.flatMap((o) => [o.sellToken, o.buyToken]))
     );
+    await Promise.all(uniq.map(ensureTokenMeta));
 
     setOrders(out);
   }
@@ -285,33 +291,50 @@ export default function DexLimitOrderCard() {
           <div className="text-sm text-slate-400">No orders yet.</div>
         )}
         <div className="space-y-2">
-          {orders.map((o) => (
-            <div
-              key={o.id}
-              className="rounded-xl border border-slate-800 bg-slate-950 p-3 text-sm"
-            >
-              <div className="flex items-center justify-between">
-                <div className="min-w-0">
-                  <div className="text-slate-300 truncate">
-                    Order #{o.id} {o.active ? "" : "(inactive)"}
+          {orders.map((o) => {
+            const sm = tokenMeta[o.sellToken];
+            const bm = tokenMeta[o.buyToken];
+
+            const sellText = sm
+              ? `${ethers.formatUnits(o.sellAmount, sm.decimals)} ${sm.symbol}`
+              : `${o.sellAmount.toString()} ?`;
+
+            const buyText = bm
+              ? `${ethers.formatUnits(o.buyAmount, bm.decimals)} ${bm.symbol}`
+              : `${o.buyAmount.toString()} ?`;
+
+            return (
+              <div
+                key={o.id}
+                className="rounded-xl border border-slate-800 bg-slate-950 p-3 text-sm"
+              >
+                <div className="flex items-center justify-between">
+                  <div className="min-w-0">
+                    <div className="text-slate-300 truncate">
+                      Order #{o.id} {o.active ? "" : "(inactive)"}
+                    </div>
+                    <div className="text-slate-400 break-all">
+                      sellToken: {o.sellToken}
+                      <br />
+                      buyToken: {o.buyToken}
+                      <br />
+                      <span className="text-slate-300">
+                        Amounts:&nbsp;{sellText} → {buyText}
+                      </span>
+                    </div>
                   </div>
-                  <div className="text-slate-400 break-all">
-                    sellToken: {o.sellToken}
-                    <br />
-                    buyToken: {o.buyToken}
-                  </div>
+                  {o.active && (
+                    <button
+                      onClick={() => cancel(o.id)}
+                      className="rounded-lg border border-slate-700 bg-slate-900 px-3 py-1 hover:bg-slate-800"
+                    >
+                      Cancel
+                    </button>
+                  )}
                 </div>
-                {o.active && (
-                  <button
-                    onClick={() => cancel(o.id)}
-                    className="rounded-lg border border-slate-700 bg-slate-900 px-3 py-1 hover:bg-slate-800"
-                  >
-                    Cancel
-                  </button>
-                )}
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       </div>
     </section>
