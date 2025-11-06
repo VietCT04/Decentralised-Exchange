@@ -1,22 +1,17 @@
-// hardhat.config.js
 import "@nomicfoundation/hardhat-ethers";
-import "@nomicfoundation/hardhat-verify";   // optional: for Etherscan verification
+import "@nomicfoundation/hardhat-verify";
 import "dotenv/config";
 
-/** @type import('hardhat/config').HardhatUserConfig */
 export default {
   solidity: "0.8.28",
   networks: {
-    hardhat: {
-      chainId: 31337,
-    },
+    hardhat: { type: "edr-simulated", chainId: 31337 },
     sepolia: {
-      url: process.env.SEPOLIA_RPC_URL,
-      accounts: process.env.PRIVATE_KEY ? [process.env.PRIVATE_KEY] : [],
+      type: "http",
       chainId: 11155111,
+      url: process.env.SEPOLIA_RPC_URL ?? "",
+      accounts: process.env.SEPOLIA_PRIVATE_KEY ? [process.env.SEPOLIA_PRIVATE_KEY] : undefined,
     },
   },
-  etherscan: {
-    apiKey: process.env.ETHERSCAN_API_KEY, // optional
-  },
+  etherscan: { apiKey: process.env.ETHERSCAN_API_KEY },
 };
