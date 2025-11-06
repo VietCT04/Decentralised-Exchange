@@ -9,7 +9,7 @@ import { fileURLToPath } from "url";
 const require = createRequire(import.meta.url);
 
 // Adjust the path only if your Solidity file name/path differs
-const dexJson = require("../artifacts/contracts/SimpleDex.sol/SimpleDex.json");
+const dexJson = require("../artifacts/contracts/SimpleDexV2.sol/SimpleDexV2.json");
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ADDR_FILE = resolve(__dirname, "../dex-web/src/lib/addresses.sepolia.json");
