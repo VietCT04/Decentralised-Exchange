@@ -207,7 +207,7 @@ export default function DexLimitOrderCard() {
           bigint,
           boolean
         ];
-        if (owner.toLowerCase() === me) {
+        if (owner.toLowerCase() === me && active && remainingSell > BigInt(0)) {
           out.push({
             id: i,
             owner,
@@ -346,13 +346,17 @@ export default function DexLimitOrderCard() {
           {orders.map((o) => {
             const sm = tokenMeta[o.sellToken];
             const bm = tokenMeta[o.buyToken];
-
+            const remainingSell: bigint = (o.remainingSell ??
+              BigInt(0)) as bigint;
+            const remainingBuy: bigint = remainingSell
+              ? (o.buyAmount * remainingSell) / o.sellAmount
+              : BigInt(0);
             const sellText = sm
-              ? `${ethers.formatUnits(o.sellAmount, sm.decimals)} ${sm.symbol}`
+              ? `${ethers.formatUnits(remainingSell, sm.decimals)} ${sm.symbol}`
               : `${o.sellAmount.toString()} ?`;
 
             const buyText = bm
-              ? `${ethers.formatUnits(o.buyAmount, bm.decimals)} ${bm.symbol}`
+              ? `${ethers.formatUnits(remainingBuy, bm.decimals)} ${bm.symbol}`
               : `${o.buyAmount.toString()} ?`;
 
             return (
