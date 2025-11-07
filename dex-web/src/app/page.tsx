@@ -2,7 +2,7 @@
 
 import ConnectButton from "./components/ConnectButton";
 import IssueTokenCard from "./components/IssueTokenCard";
-import DexLimitOrderCard from "./components/DexLimitOrderCard";
+import TradePanel from "./components/TradePanel";
 import OrderBookCard from "@/app/components/OrderBookCard";
 
 export default function Page() {
@@ -18,7 +18,7 @@ export default function Page() {
 
         <IssueTokenCard />
         <div className="h-6" />
-        <DexLimitOrderCard />
+        <TradePanel />
         <OrderBookCard />
       </div>
     </main>
