@@ -66,28 +66,46 @@ export const DEX_ABI = [
     }]
   },
   {
-    "type": "function",
-    "name": "fillOrder",
-    "stateMutability": "nonpayable",
-    "inputs": [
-      { "name": "id", "type": "uint256" },
-      { "name": "sellAmountToTake", "type": "uint256" }
+    type: 'function',
+    name: 'fillOrder',
+    stateMutability: 'nonpayable',
+    inputs: [
+      { name: 'id', type: 'uint256' },
+      { name: 'sellAmountToTake', type: 'uint256' }
     ],
-    "outputs": []
+    outputs: []
   },
 
-  // optional: new event
+  // NEW: batch helper used by Market Buy path
   {
-    "type": "event",
-    "name": "OrderFilled",
-    "inputs": [
-      { "name": "id", "type": "uint256", "indexed": true },
-      { "name": "maker", "type": "address", "indexed": true },
-      { "name": "taker", "type": "address", "indexed": true },
-      { "name": "sellTaken", "type": "uint256", "indexed": false },
-      { "name": "buyPaid", "type": "uint256", "indexed": false }
+    type: 'function',
+    name: 'fillManyBuyBase',
+    stateMutability: 'nonpayable',
+    inputs: [
+      { name: 'base',      type: 'address' },
+      { name: 'quote',     type: 'address' },
+      { name: 'wantBase',  type: 'uint256' },
+      { name: 'maxQuote',  type: 'uint256' },
+      { name: 'makerIds',  type: 'uint256[]' },
+      { name: 'takeBase',  type: 'uint256[]' }
     ],
-    "anonymous": false
+    outputs: [
+      { name: 'spentQuote', type: 'uint256' }
+    ]
+  },
+
+  // event (keep as-is; update only if your contract emits more fields)
+  {
+    type: 'event',
+    name: 'OrderFilled',
+    inputs: [
+      { name: 'id', type: 'uint256', indexed: true },
+      { name: 'maker', type: 'address', indexed: true },
+      { name: 'taker', type: 'address', indexed: true },
+      { name: 'sellTaken', type: 'uint256', indexed: false },
+      { name: 'buyPaid', type: 'uint256', indexed: false }
+    ],
+    anonymous: false
   },
   { inputs: [], name: 'getOrdersLength', outputs: [{ type: 'uint256' }], stateMutability: 'view', type: 'function' }
 ] as const;

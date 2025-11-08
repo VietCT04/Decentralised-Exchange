@@ -173,7 +173,7 @@ export default function DexMarketOrderCard() {
       const dex = new ethers.Contract(dexAddress, DEX_ABI, s);
 
       if (side === "sell") {
-        // SELL: user sells BASE for QUOTE
+        // -------- SELL: user sells BASE for QUOTE (keep existing flow) --------
         const sellBase = ethers.parseUnits(amount || "0", decBase);
         if (sellBase <= BI0) throw new Error("Amount must be greater than 0");
 
@@ -181,7 +181,7 @@ export default function DexMarketOrderCard() {
 
         const beforeQuote = await balanceOf(quoteToken, me);
 
-        // Aggressive price: buyAmount = 1 wei of QUOTE -> guarantees crossing
+        // Aggressive taker: tiny buyAmount in QUOTE ensures crossing
         const buyMinQuote = BI1;
 
         const tx = await dex.createOrder(
@@ -192,7 +192,7 @@ export default function DexMarketOrderCard() {
         );
         const rc = await tx.wait();
 
-        // If any remainder posted, cancel it to refund leftover escrow
+        // Cancel any resting remainder to refund escrow
         const createdId = extractCreatedId(rc);
         if (createdId !== null) {
           const tx2 = await dex.cancelOrder(createdId);
@@ -209,85 +209,80 @@ export default function DexMarketOrderCard() {
           )} ${meta[quoteToken]?.symbol ?? "token"}.`,
         });
       } else {
-        // BUY: user buys BASE, paying QUOTE
+        // -------- BUY: user buys BASE paying QUOTE (single tx via fillManyBuyBase) --------
         const wantBase = ethers.parseUnits(amount || "0", decBase);
         if (wantBase <= BI0) throw new Error("Amount must be greater than 0");
 
+        // 1) Read the opposite book (asks: sellToken=BASE, buyToken=QUOTE)
         const book = await fetchActiveOrders();
-        const opp = book.filter(
+        const asks = book.filter(
           (o) =>
             o.sellToken.toLowerCase() === baseToken.toLowerCase() &&
             o.buyToken.toLowerCase() === quoteToken.toLowerCase()
         );
-        if (opp.length === 0) throw new Error("No liquidity for this pair.");
+        if (asks.length === 0) throw new Error("No liquidity for this pair.");
 
-        // Best asks first (lowest quote/base)
-        opp.sort((a, b) => {
+        // 2) Sort by best price first (lowest QUOTE per BASE)
+        asks.sort((a, b) => {
           const pa = Number(a.buyAmount) / Number(a.sellAmount);
           const pb = Number(b.buyAmount) / Number(b.sellAmount);
           return pa - pb;
         });
 
-        let remainingBase = wantBase;
-        let worstAskQPB = BI0; // quote per base
-        let usedBase = BI0;
+        // 3) Plan the sweep off-chain
+        const makerIds: number[] = [];
+        const takeBase: bigint[] = [];
+        let remaining = wantBase;
+        let maxQuote = BI0; // slippage cap = sum of ceil pay per maker
 
-        for (const o of opp) {
-          if (remainingBase === BI0) break;
-          const takeBase =
-            remainingBase <= o.remainingSell ? remainingBase : o.remainingSell;
-          if (takeBase === BI0) continue;
-          remainingBase -= takeBase;
-          usedBase += takeBase;
+        for (const o of asks) {
+          if (remaining === BI0) break;
+          const take =
+            remaining <= o.remainingSell ? remaining : o.remainingSell;
+          if (take === BI0) continue;
 
-          // this order's quote/base ratio (rounded up)
-          const qpb = ceilMulDiv(o.buyAmount, BI1, o.sellAmount);
-          if (qpb > worstAskQPB) worstAskQPB = qpb;
+          makerIds.push(o.id);
+          takeBase.push(take);
+
+          // QUOTE to pay this maker at maker price (ceil)
+          maxQuote += ceilMulDiv(o.buyAmount, take, o.sellAmount);
+          remaining -= take;
         }
 
-        if (usedBase === BI0) throw new Error("Insufficient liquidity.");
+        if (remaining > BI0) {
+          const availHuman = Number(
+            ethers.formatUnits(wantBase - remaining, decBase)
+          );
+          const wantHuman = Number(ethers.formatUnits(wantBase, decBase));
+          throw new Error(
+            `Insufficient liquidity: want ${wantHuman}, available ${availHuman}.`
+          );
+        }
 
-        // Max quote to spend: ceil(usedBase * worstAskQPB)
-        const sellQuoteMax = worstAskQPB === BI0 ? BI0 : usedBase * worstAskQPB;
-        if (sellQuoteMax === BI0)
-          throw new Error("Computed spend is zero; check inputs.");
+        // 4) Approve once for maxQuote
+        await approveIfNeeded(quoteToken, maxQuote, me);
 
-        await approveIfNeeded(quoteToken, sellQuoteMax, me);
-
+        // 5) Execute in one tx
         const beforeBase = await balanceOf(baseToken, me);
-
-        // Post taker: sell QUOTE, buy BASE
-        const tx = await dex.createOrder(
-          quoteToken,
+        const tx = await dex.fillManyBuyBase(
           baseToken,
-          sellQuoteMax,
-          usedBase
+          quoteToken,
+          wantBase,
+          maxQuote,
+          makerIds,
+          takeBase
         );
-        const rc = await tx.wait();
+        await tx.wait();
 
-        // Cancel any resting remainder immediately
-        const createdId = extractCreatedId(rc);
-        if (createdId !== null) {
-          const tx2 = await dex.cancelOrder(createdId);
-          await tx2.wait();
-        }
-
+        // 6) Show result (contract refunds any unused QUOTE, no resting remainder)
         const afterBase = await balanceOf(baseToken, me);
         const gotBase = afterBase - beforeBase;
 
-        const gotBaseHuman = Number(ethers.formatUnits(gotBase, decBase));
-        const wantBaseHuman = Number(ethers.formatUnits(wantBase, decBase));
-
         setMsg({
           type: "success",
-          text:
-            gotBase >= wantBase
-              ? `Market buy executed. Received ≈ ${gotBaseHuman} ${
-                  meta[baseToken]?.symbol ?? "token"
-                }.`
-              : `Partial fill. Received ≈ ${gotBaseHuman}/${wantBaseHuman} ${
-                  meta[baseToken]?.symbol ?? "token"
-                }.`,
+          text: `Market buy executed. Received ≈ ${Number(
+            ethers.formatUnits(gotBase, decBase)
+          )} ${meta[baseToken]?.symbol ?? "token"}.`,
         });
       }
     } catch (e: any) {
