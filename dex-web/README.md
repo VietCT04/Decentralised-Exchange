@@ -1,4 +1,4 @@
-# dex-web — Next.js Frontend
+# dex-web - Next.js Frontend
 
 UI for the DEX MVP. **Sepolia default**, Hardhat local supported.
 
