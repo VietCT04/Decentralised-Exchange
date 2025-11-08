@@ -20,11 +20,11 @@ User (MetaMask)
    │
    ▼
 Next.js Frontend (dex-web)  ──────── reads/writes via ethers.js ────────►  Hardhat JSON-RPC / Sepolia
-   │                                                                          │
+   │                                                                           │
    ├── IssueTokenCard ─────► TokenFactory.issueToken(...) ── emits TokenIssued │
-   ├── DexLimitOrderCard ─► SimpleDex.createOrder / cancel / getOrder         │
+   ├── DexLimitOrderCard ─► SimpleDex.createOrder / cancel / getOrder          │
    ├── DexMarketOrderCard ─► SimpleDex.fillOrder(...)                          │
-   └── OrderBookCard ─────► SimpleDex.getOrdersLength/getOrder                ▼
+   └── OrderBookCard ─────► SimpleDex.getOrdersLength/getOrder                 ▼
 Smart Contracts
    ├── TokenFactory.sol (ERC‑20 factory)
    ├── SimpleDex.sol (V1 order book)
@@ -126,7 +126,7 @@ Manual test flow (covered by UI):
 ---
 
 ## 7) Security Notes & Limitations
-- **Educational MVP—NOT audited.** No real funds.
+- **Educational MVP - NOT audited.** No real funds.
 - **Approvals:** Users must approve DEX to move tokens. The UI prompts as needed.
 - **Reentrancy/Checks‑Effects‑Interactions:** Transfers happen after internal state updates; still, comprehensive audits are out of scope.
 - **Matching & partial fills:** Only basic limit placement + fill shown; advanced matching, fee logic, and partial‑fill edge cases are limited.
