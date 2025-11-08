@@ -1,80 +1,65 @@
-# Sample Hardhat 3 Beta Project (`mocha` and `ethers`)
+# Decentralised-Exchange (DEX) — Monorepo
 
-This project showcases a Hardhat 3 Beta project using `mocha` for tests and the `ethers` library for Ethereum interactions.
+A minimal **order-book DEX MVP** with Solidity smart contracts, deployment scripts, and a **Next.js** frontend.
 
-To learn more about the Hardhat 3 Beta, please visit the [Getting Started guide](https://hardhat.org/docs/getting-started#getting-started-with-hardhat-3). To share your feedback, join our [Hardhat 3 Beta](https://hardhat.org/hardhat3-beta-telegram-group) Telegram group or [open an issue](https://github.com/NomicFoundation/hardhat/issues/new) in our GitHub issue tracker.
+- Contracts: `contracts/` (SimpleDex, SimpleDexV2, TokenFactory, sample ERC-20s)
+- Frontend: `dex-web/` (Next.js App Router, TypeScript)
+- Tooling: **Hardhat 3**, **ethers.js**, **mocha**
 
-## Project Overview
+## Repo Layout
+```
+.
+├─ contracts/
+├─ dex-web/
+├─ scripts/
+├─ ignition/modules/
+├─ test/
+├─ hardhat.config.js
+└─ package.json
+```
 
-This example project includes:
+## Quickstart (Local)
+```bash
+npm install
+npx hardhat node                           # terminal 1
 
-- A simple Hardhat configuration file.
-- Foundry-compatible Solidity unit tests.
-- TypeScript integration tests using `mocha` and ethers.js
-- Examples demonstrating how to connect to different types of networks, including locally simulating OP mainnet.
+node scripts/deployFactory-write-frontend.js   # terminal 2
+node scripts/deployDex-write-frontend.js
+node scripts/deployTokens-standalone.js
+```
 
-## Usage
+Addresses are written to `dex-web/src/lib/addresses.local.json`.
 
-To run frontend, execute the following command:
-```shell
+Run the frontend:
+```bash
 cd dex-web
+npm install
 npm run dev
 ```
 
-To run the fake crypto wallet and token factory, execute the following command:
-Terminal 1: 
-```shell
-npx hardhat node
+## Sepolia (Testnet)
+Set env (e.g. `.env` at repo root):
+```bash
+SEPOLIA_RPC_URL=...
+SEPOLIA_PRIVATE_KEY=0xYourPrivateKey
+ETHERSCAN_API_KEY=...
 ```
-Terminal 2: 
-```shell
-node scripts/deployFactory-write-frontend.js
+Deploy:
+```bash
+node scripts/deployFactory-sepolia.mjs
+node scripts/deployDex-sepolia.mjs        # or deployDexV2-sepolia.mjs
+node scripts/deployTokens-sepolia.mjs
 ```
+This updates `dex-web/src/lib/addresses.sepolia.json`.
 
-To connect to hardhat local network:
-- Import the first account from 'npx hardhat node' to metamask
-- Add local hardhat network to metamask: 
-    + Default RPC URL: (http://127.0.0.1:8545)
-    + Chain ID: 31337
-    + Currency: ETH
-
-### Running Tests
-
-To run all the tests in the project, execute the following command:
-
-```shell
+## Testing
+```bash
 npx hardhat test
 ```
 
-You can also selectively run the Solidity or `mocha` tests:
+## Notes
+- Educational MVP — **not audited**. Don’t use with real funds.
+- Restarting `npx hardhat node` wipes state; redeploy and refresh addresses.
 
-```shell
-npx hardhat test solidity
-npx hardhat test mocha
-```
-
-### Make a deployment to Sepolia
-
-This project includes an example Ignition module to deploy the contract. You can deploy this module to a locally simulated chain or to Sepolia.
-
-To run the deployment to a local chain:
-
-```shell
-npx hardhat ignition deploy ignition/modules/Counter.ts
-```
-
-To run the deployment to Sepolia, you need an account with funds to send the transaction. The provided Hardhat configuration includes a Configuration Variable called `SEPOLIA_PRIVATE_KEY`, which you can use to set the private key of the account you want to use.
-
-You can set the `SEPOLIA_PRIVATE_KEY` variable using the `hardhat-keystore` plugin or by setting it as an environment variable.
-
-To set the `SEPOLIA_PRIVATE_KEY` config variable using `hardhat-keystore`:
-
-```shell
-npx hardhat keystore set SEPOLIA_PRIVATE_KEY
-```
-
-After setting the variable, you can run the deployment with the Sepolia network:
-
-```shell
-npx hardhat ignition deploy --network sepolia ignition/modules/Counter.ts
-```
+## License
+MIT
