@@ -30,6 +30,6 @@
     ".next/dev/types/**/*.ts",
     "**/*.mts",
     "src/types/**/*.d.ts"
-  ],
+, "tailwind.config.mjs"  ],
   "exclude": ["node_modules"]
 }
