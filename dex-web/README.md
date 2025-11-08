@@ -28,7 +28,7 @@ node scripts/deployTokens-standalone.js
 1. Click **Connect** (MetaMask).
 2. Open **Issue ERC‑20** card.
 3. Enter name, symbol, initial supply (wei or human units per UI notes).
-4. Submit — the token address appears after confirmation.
+4. Submit - the token address appears after confirmation.
 
 ### B) Place a limit order
 1. **Approve the DEX** to spend your token (UI prompts if missing).
@@ -40,19 +40,19 @@ node scripts/deployTokens-standalone.js
 - **Cancel:** Maker can cancel their own order.
 
 ## 4) Key Files
-- `src/app/page.tsx` — main page composing the cards
+- `src/app/page.tsx` - main page composing the cards
 - `src/app/components/IssueTokenCard.tsx`
 - `src/app/components/DexLimitOrderCard.tsx`
 - `src/app/components/DexMarketOrderCard.tsx`
 - `src/app/components/OrderBookCard.tsx`
-- `src/lib/abi.ts` — minimal ABIs (ERC‑20, DEX, Factory)
-- `src/lib/net.ts` — network helpers
+- `src/lib/abi.ts` - minimal ABIs (ERC‑20, DEX, Factory)
+- `src/lib/net.ts` - network helpers
 
 ## 5) Troubleshooting
-- **“No contract at address”** — re‑run deploy scripts to regenerate `addresses.*.json`.
-- **“insufficient allowance”** — approve the DEX first.
-- **Network mismatch** — switch MetaMask to the correct network.
-- **Fresh Hardhat node** — if you restart `npx hardhat node`, redeploy + refresh addresses.
+- **“No contract at address”** - re‑run deploy scripts to regenerate `addresses.*.json`.
+- **“insufficient allowance”** - approve the DEX first.
+- **Network mismatch** - switch MetaMask to the correct network.
+- **Fresh Hardhat node** - if you restart `npx hardhat node`, redeploy + refresh addresses.
 
 ## License
 MIT
