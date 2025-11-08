@@ -1,4 +1,4 @@
-# dex-web — Next.js Frontend for the DEX MVP
+# dex-web - Next.js Frontend for the DEX MVP
 
 Simple UI to **issue tokens**, **place/fill/cancel orders**, and **view the order book**.
 
