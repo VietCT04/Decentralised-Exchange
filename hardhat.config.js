@@ -3,7 +3,13 @@ import "@nomicfoundation/hardhat-verify";
 import "dotenv/config";
 
 export default {
-  solidity: "0.8.28",
+  solidity: {
+    version: "0.8.28",
+    settings: {
+      optimizer: { enabled: true, runs: 200 },
+      viaIR: true,            // <— enable IR codegen to avoid stack-too-deep
+    },
+  },
   networks: {
     hardhat: { type: "edr-simulated", chainId: 31337 },
     sepolia: {
