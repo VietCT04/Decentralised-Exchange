@@ -78,6 +78,8 @@ npm run dev
 ```
 Open: http://localhost:3000
 
+Turn on your darkmode (just in case Tailwind don't work on your computer)
+
 Click Connect Wallet → MetaMask will auto-switch to Sepolia (11155111).
 
 Enjoy!!!
