@@ -1,4 +1,4 @@
-# DEX-MVP (Sepolia) — How To Run & Grade
+# DEX-MVP (Sepolia) — How To Run
 
 ## Description  
 A minimal order-book DEX you can run from a browser on Sepolia testnet.
